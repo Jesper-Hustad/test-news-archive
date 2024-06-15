@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article Fetcher</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+    <link href="https://unpkg.com/tabulator-tables@6.2.1/dist/css/tabulator.min.css" rel="stylesheet">
+    <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.2.1/dist/js/tabulator.min.js"></script>
+    <link href="/dist/css/tabulator_bootstrap5.min.css" rel="stylesheet">
+    <style>
+        #example-table {
+            margin-top: 20px;
+        }
+        .content-holder {
+            max-width: 800px;
+            margin: auto;
+        padding: 10px;
+        border-top: 1px solid #333;
+        background: #f9f9f9;
+        word-wrap: break-word; /* Allow long words to break and wrap */
+        overflow: auto;
+        max-height: 600px; /* Adjust max-height as needed */
+        overflow-wrap: break-word;
+        white-space: pre-line;
+        }
+        .content-holder img {
+            max-width: 100%;
+            height: auto;
+        }
+        .content-holder * {
+        max-width: 100%; /* Ensure child elements respect the max-width of .content-holder */
+        box-sizing: border-box; /* Include padding and border in the element's total width */
+        white-space: pre-line;
+    }
+    p{
+        margin: 0 0 -5px;
+    }
+    @media (hover: hover) and (pointer: fine) {
+    .tabulator-row.tabulator-selectable:hover {
+        background-color: #f4f4f4;
+        cursor: pointer;
+    }
+}
+
+.tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle {
+    align-items: center;
+    background: #36b823;
+    border-radius: 20px;
+    color: #fff;
+    display: inline-flex;
+    font-size: 3.1em;
+    font-weight: 700;
+    height: 25px;
+    justify-content: center;
+    -moz-user-select: none;
+    -khtml-user-select: none;
+    -webkit-user-select: none;
+    -o-user-select: none;
+    width: 25px;
+}
+
+.relevance-cell {
+        font-weight: bold;
+        font-size: 1.5em; /* Adjust this value as needed */
+    }
+
+    .description-cell {
+            white-space: normal; /* Enable word wrapping */
+        }
+
+        .title-cell {
+            white-space: normal; /* Enable word wrapping */
+            font-size: 1.3em;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="fetch-articles">Get Articles</button>
+    <div id="example-table"></div>
+
+    <script>
+        document.getElementById("fetch-articles").addEventListener("click", function() {
+            fetch("https://rkxo4psmdj.execute-api.us-east-2.amazonaws.com/dev/")
+                .then(response => response.json())
+                .then(data => {
+                    // Format date for "published" column
+                    function formatDate(cell, formatterParams, onRendered) {
+                        let date = new Date(cell.getValue());
+                        return date.toISOString().split('T')[0];
+                    }
+
+                    // Initialize table with the fetched data
+                    var table = new Tabulator("#example-table", {
+                        data: data.body, // assign data to table
+                        layout: "fitColumns", // fit columns to width of table
+                        responsiveLayout: "collapse", // enable responsive layouts
+                        responsiveLayoutCollapseStartOpen: false, // start with collapsed rows
+                        rowHeader: {
+                            formatter: "responsiveCollapse",
+                            width: 30,
+                            minWidth: 30,
+                            hozAlign: "center",
+                            resizable: false,
+                            headerSort: false
+                        },
+                        columns: [
+                              
+                            { title:"Read", formatter: "responsiveCollapse", width: 60, minWidth: 30, hozAlign: "center", resizable: false, headerSort: false },
+                            
+                            { 
+                                title: "Relevance", field: "relevance", sorter: "number", headerFilter: "input", 
+                                width: 50, // Set a specific width
+                                formatter: function(cell, formatterParams, onRendered) {
+                                    return `<span class="relevance-cell">${cell.getValue()}</span>`;
+                                }
+                            },
+                            { title: "Favicon", field: "favicon", width: 25,formatter: "image", hozAlign: "center",formatterParams: { height: "20px", width: "auto" } },
+                            { title: "Image", field: "image", width: 200,
+                                formatter:function(cell, formatterParams, onRendered) {
+                                        let imageUrl = cell.getValue();
+                                        let rowData = cell.getRow().getData();
+                                        return `<a href="${rowData.url}" target="_blank"><img src="${imageUrl}" style="max-height: auto; max-width: 190px; cursor: pointer;"></a>`;
+                                    } 
+                                , formatterParams: { height: "100px", width: "auto" } },
+                            { title: "Title", field: "title", headerFilter: "input", width: 300, 
+                            formatter:function(cell, formatterParams, onRendered) {
+                                    return `<div class="title-cell">${cell.getValue()}</div>`;
+                                }
+                            },
+                            { 
+                                title: "Description", 
+                                field: "description", 
+                                headerFilter: "input", 
+                                formatter:function(cell, formatterParams, onRendered) {
+                                    return `<div class="description-cell">${cell.getValue()}</div>`;
+                                }
+                            },
+                            { title: "Author", field: "author", headerFilter: "input", width: 120},
+                            { title: "Source", field: "source", headerFilter: "input", width: 80},
+                            { title: "Published", field: "published", formatter: formatDate, headerFilter: "input", width: 100},
+                            
+                            { title: "URL", field: "url", width: 60, formatter: function(cell, formatterParams, onRendered){
+                                let url = cell.getValue();
+                                return `<button onclick="window.open('${url}', '_blank')">Visit</button>`;
+                            }},
+                            { title: "Content", field: "content", visible: false }
+                        ],
+                        initialSort: [
+                            { column: "relevance", dir: "desc" } // sort by relevance in descending order
+                        ],
+                        autoColumns: false, // use defined columns instead of auto columns
+                        rowFormatter: function(row) {
+                            // Create an element to hold the content
+                            let holderEl = document.createElement("div");
+                            holderEl.className = "content-holder tabulator-responsive-collapse";
+                            let contentEl = document.createElement("div");
+                            
+                            // Set innerHTML to the content
+                            contentEl.innerHTML = row.getData().content;
+
+                            holderEl.appendChild(contentEl);
+
+                            // Style the holder element
+                            holderEl.style.padding = "10px";
+                            holderEl.style.borderTop = "1px solid #333";
+                            holderEl.style.background = "#f9f9f9";
+                            holderEl.style.maxWidth = "800px";
+
+                            let rowEl = row.getElement()
+                            let collapseEl = rowEl.querySelector(".tabulator-responsive-collapse");
+
+                            // Add the holder element to the row
+                            collapseEl.appendChild(holderEl);
+                        }
+                    
+                    });
+                })
+                .catch(error => console.error("Error fetching articles:", error));
+        });
+    </script>
+
+</body>
+</html>
